@@ -1,5 +1,12 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow as tf
+
+CONFIG = tf.ConfigProto(device_count={'GPU': 4}, log_device_placement=False, allow_soft_placement=False)
+CONFIG.gpu_options.allow_growth = True  # Prevents tf from grabbing all gpu memory.
+sess = tf.Session(config=CONFIG)
+
+
 
 import tensorflow as tf
 import keras
@@ -16,12 +23,19 @@ num_classes = 10
 
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 print(x_train.shape)
+print(x_test.shape)
 
 x_train = x_train.reshape(-1,28,28,1).astype('float32') / 255.
+x_val = x_train[55000:]
+x_train = x_train[:55000]
+y_val = y_train[55000:]
+y_train = y_train[:55000]
+
+
 x_test = x_test.reshape(-1,28,28,1).astype('float32') / 255.
 
 y_train_cat = keras.utils.to_categorical(y_train, num_classes)
-
+y_val_cat = keras.utils.to_categorical(y_val, num_classes)
 y_test_cat = keras.utils.to_categorical(y_test, num_classes)
 
 
@@ -63,34 +77,32 @@ from numpy import array
 from numpy import cumsum
 from keras.models import Sequential
 
-input_img = Input(shape=input_shape)  # adapt this if using `channels_first` image data format
-x = Conv2D(32, (5, 5), activation='relu', padding='same')(input_img)
-x = MaxPooling2D((2, 2), padding='same')(x)
 
-x = Conv2D(64, (5, 5), activation='relu', padding='same')(x)
-x = MaxPooling2D((2, 2), padding='same')(x)
-
-x = Flatten()(x)
-x = Dense(1024,activation='relu')(x)
-
-x = Dropout(0.4)(x)
-
-x = Dense(num_classes, activation='sigmoid')(x)
+def getCNNBase():
+    input_img = Input(shape=input_shape)  # adapt this if using `channels_first` image data format
+    x = Conv2D(32, (5, 5), activation='relu', padding='same')(input_img)
+    x = MaxPooling2D((2, 2), padding='same')(x)
+    x = Conv2D(64, (5, 5), activation='relu', padding='same')(x)
+    x = MaxPooling2D((2, 2), padding='same')(x)
+    x = Flatten()(x)
+    x = Dense(1024,activation='relu')(x)
+    x = Dropout(0.4)(x)
+    return input_img,x
+input_img,x = getCNNBase()
+x = Dense(num_classes, activation='softmax')(x)
 base = Model(input_img,x)
 
-lr = 1e-3
-SGDopt = keras.optimizers.SGD(lr=lr)
-base.compile(loss=[keras.losses.categorical_crossentropy], optimizer=SGDopt)
+def compileRun(model,loss):
+    lr = 3e-3
+    SGDopt = keras.optimizers.SGD(lr=lr)
 
-base.fit(x_train,y_train_cat,batch_size=2,epochs=10)
+    with tf.device('/gpu:' + str(2)):
+        model.compile(loss=[loss], optimizer=SGDopt,metrics=['accuracy'])
+    model.fit(x_train,y_train_cat,batch_size=128,epochs=10,validation_data=(x_test,y_test_cat))
 
+#compileRun(base,keras.losses.categorical_crossentropy)
 
-inp = Input(shape=input_shape)
-next_layer = inp
-next_layer = Flatten()(next_layer)
-next_layer = Dense(20,activation='relu')(next_layer)
-next_layer = Dense(20,activation='relu')(next_layer)
-last_hidden_layer = next_layer
+inp, next_layer = getCNNBase()
 output = Dense(num_classes)(next_layer)
 rho = Dense(num_classes,activation='sigmoid',name="rho")(next_layer)
 zee = SoftZ()(rho)
@@ -104,11 +116,9 @@ def custom_loss(y_true, y_pred):
     q_loss = keras.losses.categorical_crossentropy(y_true,y_pred)
     reg_loss = keras.losses.binary_crossentropy(rho,rho)
     alpha = .5
-    return q_loss + variational_loss - alpha * reg_loss
+    return q_loss + variational_loss #- alpha * reg_loss
 
-lr = 1e-3
-SGDopt = keras.optimizers.SGD(lr=lr)
-model.compile(loss=[custom_loss], optimizer=SGDopt)
+compileRun(model,keras.losses.categorical_crossentropy)
 
-model.fit(x_train,y_train_cat,batch_size=2,epochs=10)
-
+print(model.predict(x_train[:2]))
+print(y_train[:2])
