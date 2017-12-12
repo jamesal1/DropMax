@@ -21,31 +21,14 @@ from keras.datasets import mnist
 from keras import losses
 import keras.backend as K
 
+from customlayers import *
+
 #For GPU environment
 CONFIG = tf.ConfigProto(device_count={'GPU': 4}, log_device_placement=False, allow_soft_placement=False)
 CONFIG.gpu_options.allow_growth = True  # Prevents tf from grabbing all gpu memory.
 sess = tf.Session(config=CONFIG)
 
 
-class SoftZ(Layer):
-
-    def __init__(self, **kwargs):
-        super(SoftZ, self).__init__(**kwargs)
-        self.supports_masking = True
-
-    def call(self, inputs, training=None):
-        u = tf.random_uniform(shape=tf.shape(inputs))
-        # formula (6). tau is usually set to 0.1
-        # In the paper, input is rho(x;v)
-        tau = .1
-        #noised = tf.sigmoid((1 / tau) * (tf.log(inputs / (1 - inputs)) + tf.log(u / (1 - u))))
-        noised = tf.sigmoid((1 / tau) * (inputs + tf.log(u / (1 - u))))
-        return K.in_train_phase(noised, inputs, training=training)
-
-    def get_config(self):
-        config = {'stddev': self.stddev}
-        base_config = super(SoftZ, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
 
 
 def getCNNBase():
@@ -132,15 +115,14 @@ rho = Dense(num_classes,name="rho")(next_layer)
 # Instantiate SoftZ object with parameter rho
 zee = SoftZ()(rho)
 
-output = Dense(num_classes,name="output",activation="relu")(next_layer)
-next_layer = Multiply(name="multiply")([output,zee])
-softMax = Activation("softmax",name="softmax")(next_layer)
-model = Model(inp,softMax)
-
-# output = Dense(num_classes,name="output",activation="softmax")(next_layer)
+# output = Dense(num_classes,name="output",activation="relu")(next_layer)
 # next_layer = Multiply(name="multiply")([output,zee])
 # softMax = Activation("softmax",name="softmax")(next_layer)
 # model = Model(inp,softMax)
+
+output = Dense(num_classes,name="output",activation="softmax")(next_layer)
+softMax = MaskSoftMax(name="softmax")([output,zee])
+model = Model(inp,softMax)
 
 
 

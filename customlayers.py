@@ -18,7 +18,8 @@ class SoftZ(Layer):
         tau = .1
         #noised = tf.sigmoid((1 / tau) * (tf.log(inputs / (1 - inputs)) + tf.log(u / (1 - u))))
         noised = tf.sigmoid((1 / tau) * (inputs + tf.log(u / (1 - u))))
-        return K.in_train_phase(noised, inputs, training=training)
+        unnoised = tf.sigmoid((1 / tau) * inputs)
+        return K.in_train_phase(noised, unnoised, training=training)
 
     def get_config(self):
         config = {'stddev': self.stddev}
@@ -27,15 +28,11 @@ class SoftZ(Layer):
 
 
 class MaskSoftMax(Merge):
-    """Layer that multiplies (element-wise) a list of inputs.
 
-    It takes as input a list of tensors,
-    all of the same shape, and returns
-    a single tensor (also of the same shape).
-    """
 
     def _merge_function(self, inputs):
         output = inputs[0]
-        for i in range(1, len(inputs)):
-            output *= inputs[i]
-        return output
+        mask = inputs[1]
+        e = K.exp(output - K.max(output, axis=1, keepdims=True)) * mask
+        s = K.sum(e,axis=1,keepdims=True)
+        return e/s
