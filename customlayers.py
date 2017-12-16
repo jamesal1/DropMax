@@ -2,7 +2,7 @@ import keras
 import keras.backend as K
 import tensorflow as tf
 from keras.layers import Input, Dense, Dropout, Flatten, Layer, Lambda, Multiply, Merge
-
+from tensorflow.contrib.distributions import  Bernoulli
 from sparsemax import sparsemax
 
 
@@ -22,28 +22,6 @@ class SoftZ(Layer):
         unnoised = tf.sigmoid((1 / tau) * inputs)
         return K.in_train_phase(noised, unnoised, training=training)
 
-    # def get_config(self):
-    #     config = {'stddev': self.stddev}
-    #     base_config = super(SoftZ, self).get_config()
-    #     return dict(list(base_config.items()) + list(config.items()))
-
-
-# class MaskSoftMax(Merge):
-#
-#
-#     def merge_function(self, inputs):
-#         return None
-#         output = inputs[0]
-#         mask = inputs[1]
-#         raise ValueError(str(len(inputs)))
-#         return inputs[2]
-#         # e = K.exp(output - K.max(output, axis=1, keepdims=True)) * mask
-#         e = K.exp(output - K.max(output, axis=1, keepdims=True))
-#         # e = output * mask
-#         s = K.sum(e,axis=1,keepdims=True)
-#         return e/s
-
-
 
 def maskSoftMax(output,zee):
     output = keras.layers.Lambda(lambda x: K.exp(x - K.max(x, axis=1, keepdims=True)))(output)
@@ -54,3 +32,32 @@ def maskSoftMax(output,zee):
 
 def SparseMax():
     return keras.layers.Lambda(lambda x: sparsemax(x))
+
+def randomDropLogit(retain):
+    def ret(y_true, y_pred):
+        bernoulli = Bernoulli(probs=retain)
+        b = tf.cast(bernoulli.sample(sample_shape=tf.shape(y_true)), dtype=tf.float32)
+        output = y_pred
+        mask = tf.maximum(b, y_true)
+        output = output * mask
+        output = tf.nn.softmax(output)
+        loss = keras.losses.categorical_crossentropy(y_true,output)
+        return loss
+    return ret
+
+def randomDropClass(retain):
+    def ret(y_true, y_pred):
+        bernoulli = Bernoulli(probs=retain)
+        b = tf.cast(bernoulli.sample(sample_shape=tf.shape(y_true)), dtype=tf.float32)
+        output = y_pred
+        mask = tf.maximum(b, y_true)
+        exp_output = tf.exp(output - tf.reduce_max(output, reduction_indices=[1], keep_dims=True))
+        exp_output = exp_output * mask + 1e-4
+        sum_output = tf.reduce_sum(output, axis=1, keep_dims=True)
+        output = exp_output / sum_output
+        loss = keras.losses.categorical_crossentropy(y_true,output)
+        return loss
+    return ret
+
+def logitAccuracy(y_true,y_pred):
+    return loss()
