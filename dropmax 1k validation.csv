@@ -1,0 +1,16 @@
+l2 weight regularization,0,1.00E-05,1.00E-04,1.00E-03
+softmax,0.9628,0.959,0.9604,0.9542
+sparsemax,0.592,0.6828,0.6944,0.0976
+"adaptive dropmax (drop class, regular cross-entropy)",0.96,0.9524,0.9602,0.9506
+"adaptive dropmax (drop class, lambda = 0)",0.9524,0.9586,0.9584,0.9594
+"adaptive dropmax (drop class, lambda = 1)",0.9542,0.9624,0.959,0.9508
+"adaptive dropmax (drop class, lambda = 10)",0.9676,0.9718,0.9684,0.9616
+"adaptive dropmax (drop logit, lambda = 1)",0.9548,0.952,0.9544,0.9502
+"adaptive dropmax (drop logit, lambda = 10)",0.9622,0.9656,0.965,0.96
+"adaptive dropmax (drop logit, lambda = 100)",0.9648,0.9614,0.9628,0.9468
+"random dropmax (drop class, retain = .2)",0.96,0.958,0.958,0.9466
+"random dropmax (drop class, retain = .4)",0.9582,0.9602,0.9572,0.943
+"random dropmax (drop class, retain = .6)",0.9586,0.9582,0.9572,0.9536
+"random dropmax (drop logit, retain = .2)",0.9612,0.9596,0.9586,0.947
+"random dropmax (drop logit, retain = .4)",0.9596,0.9564,0.9554,0.9492
+"random dropmax (drop logit, retain = .6)",0.9572,0.9574,0.9616,0.956
