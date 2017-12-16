@@ -14,8 +14,6 @@ class SoftZ(Layer):
 
     def call(self, inputs, training=None):
         u = tf.random_uniform(shape=tf.shape(inputs))
-        # formula (6). tau is usually set to 0.1
-        # In the paper, input is rho(x;v)
         tau = .1
         #noised = tf.sigmoid((1 / tau) * (tf.log(inputs / (1 - inputs)) + tf.log(u / (1 - u))))
         noised = tf.sigmoid((1 / tau) * (inputs + tf.log(u / (1 - u))))
@@ -58,6 +56,3 @@ def randomDropClass(retain):
         loss = keras.losses.categorical_crossentropy(y_true,output)
         return loss
     return ret
-
-def logitAccuracy(y_true,y_pred):
-    return loss()
